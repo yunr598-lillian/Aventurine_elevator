@@ -49,7 +49,7 @@
         /* 4. 惩罚/成功界面 */
         #result-screen { width: 100%; height: 100%; background: #000; position: absolute; top: 0; left: 0; padding: 25px; box-sizing: border-box; overflow-y: auto; z-index: 20; }
         .fail-title { font-size: 24px; color: #f00; text-align: center; margin-top: 40%; cursor: pointer; animation: pulse 1.5s infinite; }
-        .success-msg { font-size: 16px; color: #d4af37; text-align: center; margin-top: 40%; line-height: 1.6; }
+        .success-msg { font-size: 20px; color: #d4af37; text-align: center; margin-top: 40%; line-height: 1.6; }
         .story-text { font-size: 12px; line-height: 1.8; color: #ccc; text-align: justify; display: none; margin-bottom: 30px; border-left: 2px solid #800; padding-left: 10px; }
         .next-btn { width: 100%; padding: 15px; background: #200; border: 1px solid #800; color: #f00; cursor: pointer; margin-top: 20px; font-family: inherit; display: none; }
 
@@ -114,13 +114,15 @@
     // --- Data Configuration ---
     const introText = "欢迎光临，亲爱的朋友。\n\n这趟电梯没有终点，只有邢飞。\n每一层都是我为你准备的“惊喜”哦。\n\n赌注是你自己，赢了随你处置，\n输了嘛……身体就要归我支配了。\n\n祝你好运，或者说……祝你尽兴。";
     
+    // 增加 correctIdx 判定，并重构权值以确保各类结局均可触发
     const levels = [
         {
           floor: "B2",
           pose: "【悬空拘束 · 强制口球】",
           question: "已知关于'虚数塌缩与现实扭曲'的论文中，第x章第x节引用的反物质方程式里，常数K的精确到小数点后五位的值是多少？",
           options: ["3.14159", "2.71828", "1.41421", "0.61803"],
-          weights: [ {pain:2}, {submission:2}, {pain:1, submission:1}, {pleasure:1} ],
+          correctIdx: 1, // B 是正确答案（真理医生提示）
+          weights: [ {pain:3}, {pleasure:2}, {pain:1, submission:1}, {pleasure:1} ],
           npc: "真理医生",
           npc_msg: "呵，这种毫无意义的死记硬背简直是对智慧的亵渎。但我可以告诉你，这四个选项在某种特定的错误逻辑下都可能成立。选B吧，至少那是自然对数的底，稍微有点美感。",
           char_hints: [
@@ -135,7 +137,8 @@
           pose: "【镜面调教 · 后入鞭笞】",
           question: "如果要用一枚筹码买下你此刻的尊严，在茨冈尼亚的黑市汇率换算下，加上星际和平公司的税率，你应该找给我多少信用点？",
           options: ["无价", "0信用点", "你的全部身家", "一枚硬币"],
-          weights: [ {submission:3}, {pain:3}, {pleasure:3}, {submission:1, pain:1} ],
+          correctIdx: 0, // A 是正确答案（托帕提示）
+          weights: [ {submission:4}, {pain:4}, {pleasure:3}, {submission:1, pain:1} ],
           npc: "托帕",
           npc_msg: "这可不是财务问题，这是个陷阱。尊严在账面上是无法估值的资产，但在他眼里……也许一文不值，也许价值连城。如果是为了清算债务，我建议选'无价'",
           char_hints: [
@@ -150,7 +153,8 @@
           pose: "【M字开腿 · 电击惩罚】",
           question: "如果我现在把手伸进你的衣服里，你的心跳频率会上升多少？",
           options: ["15.55%", "30.00%", "50.12%", "100.00%"],
-          weights: [ {submission:1}, {pleasure:1}, {pain:2}, {submission:3} ],
+          correctIdx: 3, // D 是正确答案（花火提示）
+          weights: [ {submission:1}, {pleasure:2}, {pain:3}, {submission:4} ],
           npc: "花火",
           npc_msg: "哈哈哈哈！这种问题真有趣！要是我的话，心跳会停止哦~ 因为我会直接炸掉电梯！不过你嘛……选个最大的吧？毕竟你看起来已经迫不及待了嘻嘻嘻！",
           char_hints: [
@@ -165,7 +169,8 @@
           pose: "【深喉窒息 · 剥夺呼吸】",
           question: "在匹诺康尼的梦境深处，有一只钟表每天会少走一秒。请问在第几个琥珀纪，这只钟表会指向真正的死亡时间？",
           options: ["第12纪", "第158纪", "永远不会", "现在"],
-          weights: [ {pain:1}, {pain:2}, {submission:1}, {pleasure:3} ],
+          correctIdx: 3, // D 是正确答案（黑天鹅提示）
+          weights: [ {pain:2}, {pain:4}, {submission:2}, {pleasure:4} ],
           npc: "黑天鹅",
           npc_msg: "死亡并非终结，而是记忆的沉淀。这只钟表并不存在，它是你内心恐惧的投射。如果非要选一个……选'现在'吧，因为你此刻正深陷于名为欲望的死亡之中。",
           char_hints: [
@@ -180,7 +185,8 @@
           pose: "【绝对服从 · 强制高潮】",
           question: "宝宝今天最想听到我对你说什么？",
           options: ["我爱你。", "你是我的奴隶。", "把腿张开。", "求我。"],
-          weights: [ {pleasure:5}, {submission:3}, {submission:2, pleasure:1}, {submission:5} ],
+          correctIdx: 3, // D 是正确答案（银狼提示）
+          weights: [ {pleasure:5}, {submission:4}, {submission:2, pleasure:2}, {submission:5, pain:4} ],
           npc: "银狼",
           npc_msg: "这什么鬼问题？不过按我对那家伙的了解，他那种人……大概率是想让你求他吧？或者是某种恶趣味的命令。你自己看着办，别死号上了。",
           char_hints: [
@@ -280,16 +286,18 @@
           const btn = document.createElement('div');
           btn.className = 'option-btn';
           btn.innerText = ["A. ", "B. ", "C. ", "D. "][idx] + opt;
-          btn.onclick = () => recordChoice(lvl.weights[idx]);
+          // 记录选择并判断是否正确
+          btn.onclick = () => recordChoice(lvl.weights[idx], idx === lvl.correctIdx);
           optContainer.appendChild(btn);
         });
     }
 
-    function recordChoice(weight) {
+    function recordChoice(weight, isCorrect) {
         for (let key in weight) {
+            if(stats[key] === undefined) stats[key] = 0;
             stats[key] += weight[key];
         }
-        checkAnswer();
+        checkAnswer(isCorrect);
     }
 
     function updateChances() {
@@ -322,17 +330,34 @@
         }
     }
 
-    function checkAnswer() {
+    function checkAnswer(isCorrect) {
         document.getElementById('game-container').classList.add('shake');
         setTimeout(() => document.getElementById('game-container').classList.remove('shake'), 500);
         document.getElementById('quiz-screen').classList.add('hidden');
         document.getElementById('result-screen').classList.remove('hidden');
-        document.getElementById('fail-trigger').classList.remove('hidden');
-        document.getElementById('punish-text').style.display = 'none';
-        document.getElementById('continue-btn').style.display = 'none';
         
-        let rawPunish = shuffledLevels[currentLevelIndex].punish;
-        document.getElementById('punish-text').innerText = rawPunish.replace(/\[NAME\]/g, playerName);
+        const failTrigger = document.getElementById('fail-trigger');
+        const successTrigger = document.getElementById('success-trigger');
+        const punishText = document.getElementById('punish-text');
+        const continueBtn = document.getElementById('continue-btn');
+
+        // 初始化结果界面的显示状态
+        failTrigger.classList.add('hidden');
+        successTrigger.classList.add('hidden');
+        punishText.style.display = 'none';
+        continueBtn.style.display = 'none';
+
+        if (isCorrect) {
+            // 答对免除惩罚
+            successTrigger.innerHTML = "回答正确。<br><span style='font-size:12px; color:#aaa; font-weight:normal;'>(暂且放过你一次...)</span>";
+            successTrigger.classList.remove('hidden');
+            setTimeout(() => { continueBtn.style.display = 'block'; }, 2000);
+        } else {
+            // 答错准备惩罚
+            failTrigger.classList.remove('hidden');
+            let rawPunish = shuffledLevels[currentLevelIndex].punish;
+            punishText.innerText = rawPunish.replace(/\[NAME\]/g, playerName);
+        }
     }
 
     function startPunishment() {

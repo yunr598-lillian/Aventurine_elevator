@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aventurine's Elevator</title>
+    <style>
+        body { margin: 0; padding: 0; background-color: #000; display: flex; justify-content: center; align-items: center; height: 100vh; font-family: 'Courier New', monospace; color: #ccc; overflow: hidden; user-select: none; }
+        #game-container { position: relative; width: 100%; max-width: 450px; height: 550px; background: #050505; border: 2px solid #333; overflow: hidden; box-shadow: 0 0 20px rgba(0,0,0,0.8); }
+        
+        /* 通用类 */
+        .hidden { display: none !important; }
+        .red-text { color: #8b0000; text-shadow: 0 0 2px #500; }
+        .gold-text { color: #d4af37; text-shadow: 0 0 2px #543; }
+        .center-flex { display: flex; justify-content: center; align-items: center; flex-direction: column; }
+        
+        /* 1. 开场白 */
+        #intro-screen { width: 100%; height: 100%; background: #000; padding: 30px; box-sizing: border-box; cursor: pointer; z-index: 100; text-align: left; }
+        #intro-content { font-size: 14px; line-height: 1.8; color: #b22222; font-weight: bold; white-space: pre-wrap; }
+        .cursor { display: inline-block; width: 8px; height: 15px; background: #b22222; animation: blink 1s infinite; }
+
+        /* 2. 电梯主界面 */
+        #elevator-screen { width: 100%; height: 100%; background: linear-gradient(180deg, #111 0%, #000 100%); position: relative; }
+        .display-panel { position: absolute; top: 15%; left: 50%; transform: translateX(-50%); width: 100px; height: 50px; background: #000; border: 3px solid #333; color: #ff0000; font-size: 32px; font-family: 'Segoe UI', sans-serif; box-shadow: 0 0 10px rgba(255,0,0,0.3); z-index: 2; display: flex; justify-content: center; align-items: center; }
+        .elevator-doors { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; }
+        .door { width: 50%; height: 100%; background: repeating-linear-gradient(90deg, #1a1a1a, #1a1a1a 20px, #111 20px, #111 40px); border: 1px solid #000; transition: transform 2s cubic-bezier(0.4, 0.0, 0.2, 1); z-index: 1; }
+        .door-left.open { transform: translateX(-100%); }
+        .door-right.open { transform: translateX(100%); }
+        .controls { position: absolute; bottom: 20%; width: 100%; display: flex; justify-content: center; gap: 30px; z-index: 2; }
+        .btn { width: 60px; height: 60px; border-radius: 50%; background: #222; border: 2px solid #444; color: #666; font-size: 24px; cursor: pointer; display: flex; justify-content: center; align-items: center; transition: 0.2s; }
+        .btn.active { background: #300; color: #f00; border-color: #800; box-shadow: 0 0 15px #f00; }
+
+        /* 3. 题目界面 */
+        #quiz-screen { width: 100%; height: 100%; background: #080808; padding: 20px; box-sizing: border-box; position: absolute; top: 0; left: 0; }
+        .pose-header { width: 100%; padding: 10px; background: rgba(50,0,0,0.3); border: 1px solid #500; color: #f00; text-align: center; font-size: 14px; margin-bottom: 20px; font-weight: bold; }
+        .question-box { font-size: 13px; line-height: 1.5; margin-bottom: 20px; height: 80px; overflow-y: auto; color: #ddd; }
+        .options-grid { display: grid; grid-template-columns: 1fr; gap: 10px; }
+        .option-btn { background: #151515; border: 1px solid #333; padding: 12px; font-size: 12px; cursor: pointer; transition: 0.2s; text-align: left; color: #aaa; }
+        .option-btn:hover { background: #222; border-color: #666; color: #fff; }
+        
+        .help-section { position: absolute; bottom: 20px; left: 20px; right: 20px; display: flex; justify-content: space-between; }
+        .help-btn { padding: 8px 15px; font-size: 12px; cursor: pointer; border: 1px solid; width: 45%; text-align: center; }
+        .help-char { border-color: #d4af37; color: #d4af37; background: rgba(212,175,55,0.1); }
+        .help-npc { border-color: #4682b4; color: #4682b4; background: rgba(70,130,180,0.1); }
+        
+        .dialogue-box { position: absolute; bottom: 70px; left: 10px; right: 10px; background: #fff; color: #000; padding: 10px; border-radius: 5px; font-size: 12px; display: none; box-shadow: 0 5px 15px rgba(0,0,0,0.5); z-index: 50; }
+        .dialogue-box::after { content: ''; position: absolute; bottom: -8px; left: 20px; border-width: 8px 8px 0; border-style: solid; border-color: #fff transparent; }
+
+        /* 4. 惩罚/成功界面 */
+        #result-screen { width: 100%; height: 100%; background: #000; position: absolute; top: 0; left: 0; padding: 25px; box-sizing: border-box; overflow-y: auto; z-index: 20; }
+        .fail-title { font-size: 24px; color: #f00; text-align: center; margin-top: 40%; cursor: pointer; animation: pulse 1.5s infinite; }
+        .success-msg { font-size: 16px; color: #d4af37; text-align: center; margin-top: 40%; line-height: 1.6; }
+        .story-text { font-size: 12px; line-height: 1.8; color: #ccc; text-align: justify; display: none; margin-bottom: 30px; border-left: 2px solid #800; padding-left: 10px; }
+        .next-btn { width: 100%; padding: 15px; background: #200; border: 1px solid #800; color: #f00; cursor: pointer; margin-top: 20px; font-family: inherit; display: none; }
+
+        /* 5. 结局 */
+        #ending-screen { width: 100%; height: 100%; background: #0a0a0a; display: flex; justify-content: center; align-items: center; padding: 30px; box-sizing: border-box; text-align: left; font-size: 14px; line-height: 1.8; color: #d4af37; white-space: pre-wrap; z-index: 200; overflow-y: auto; }
+
+        /* 动画 */
+        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+        @keyframes pulse { 0% { opacity: 0.6; } 50% { opacity: 1; } 100% { opacity: 0.6; } }
+        @keyframes shake { 0% { transform: translate(1px, 1px) rotate(0deg); } 10% { transform: translate(-1px, -2px) rotate(-1deg); } 20% { transform: translate(-3px, 0px) rotate(1deg); } 30% { transform: translate(3px, 2px) rotate(0deg); } 40% { transform: translate(1px, -1px) rotate(1deg); } 50% { transform: translate(-1px, 2px) rotate(-1deg); } 60% { transform: translate(-3px, 1px) rotate(0deg); } 70% { transform: translate(3px, 1px) rotate(-1deg); } 80% { transform: translate(-1px, -1px) rotate(1deg); } 90% { transform: translate(1px, 2px) rotate(0deg); } 100% { transform: translate(1px, -2px) rotate(-1deg); } }
+        .shake { animation: shake 0.5s; }
+
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <div id="intro-screen" onclick="startGame()">
+        <div id="intro-content"></div><span class="cursor"></span>
+    </div>
+
+    <div id="elevator-screen" class="hidden">
+        <div class="display-panel" id="floor-num">--</div>
+        <div class="elevator-doors">
+          <div class="door door-left" id="door-l"></div>
+          <div class="door door-right" id="door-r"></div>
+        </div>
+        <div class="controls">
+          <div class="btn" onclick="selectFloor()">▲</div>
+          <div class="btn" onclick="selectFloor()">▼</div>
+        </div>
+    </div>
+
+    <div id="quiz-screen" class="hidden">
+        <div class="pose-header" id="pose-title"></div>
+        <div class="question-box" id="q-text"></div>
+        <div class="options-grid" id="opt-container"></div>
+        
+        <div class="dialogue-box" id="dialogue-bubble"></div>
+
+        <div class="help-section">
+          <div class="help-btn help-char" onclick="callChar()">求助砂金 (<span id="char-chance">3</span>)</div>
+          <div class="help-btn help-npc" onclick="callNPC()">场外连线 (<span id="npc-chance">1</span>)</div>
+        </div>
+    </div>
+
+    <div id="result-screen" class="hidden">
+        <div id="fail-trigger" class="fail-title hidden" onclick="startPunishment()">很遗憾，答题失败。<br><span style="font-size:12px; color:#666; font-weight:normal;">(点击接受惩罚)</span></div>
+        <div id="success-trigger" class="success-msg hidden"></div>
+        <div id="punish-text" class="story-text"></div>
+        <button id="continue-btn" class="next-btn" onclick="nextLevel()">整理好衣物，继续...</button>
+    </div>
+
+    <div id="ending-screen" class="hidden"></div>
+</div>
+
+<script>
+    // --- Global Player Info ---
+    let playerName = "你";
+    let stats = { pleasure: 0, pain: 0, submission: 0 };
+
+    // --- Data Configuration ---
+    const introText = "欢迎光临，亲爱的朋友。\n\n这趟电梯没有终点，只有邢飞。\n每一层都是我为你准备的“惊喜”哦。\n\n赌注是你自己，赢了随你处置，\n输了嘛……身体就要归我支配了。\n\n祝你好运，或者说……祝你尽兴。";
+    
+    const levels = [
+        {
+          floor: "B2",
+          pose: "【悬空拘束 · 强制口球】",
+          question: "已知关于'虚数塌缩与现实扭曲'的论文中，第x章第x节引用的反物质方程式里，常数K的精确到小数点后五位的值是多少？",
+          options: ["3.14159", "2.71828", "1.41421", "0.61803"],
+          weights: [ {pain:2}, {submission:2}, {pain:1, submission:1}, {pleasure:1} ],
+          npc: "真理医生",
+          npc_msg: "呵，这种毫无意义的死记硬背简直是对智慧的亵渎。但我可以告诉你，这四个选项在某种特定的错误逻辑下都可能成立。选B吧，至少那是自然对数的底，稍微有点美感。",
+          char_hints: [
+          "哎呀，真理医生的论文我也看不懂呢。不如你随便猜一个？",
+          "错了也没关系，我对你的嘴巴有别的安排。",
+          "时间快到了哦，你的表情看起来很苦恼，真可爱。"
+          ],
+          punish: "随着“叮”的一声，天花板上降下四根冰冷的机械臂，不容分说地扣住了[NAME]的手腕和脚踝，将[NAME]整个人悬吊在半空，呈羞耻的“大”字型。重力让[NAME]的血液倒流，恐惧在血管里蔓延。紧接着，一个黑色的硅胶口球强行塞进了[NAME]的嘴里，堵住了所有的求饶，只能发出无助的呜咽。\n\n“选错了呢。”广播里传来砂金带笑的声音。座椅下方的震动棒猛然启动，毫无前戏地抵住那早已湿润的入口。没有润滑，只有机械的冷硬和强行挤入的酸胀。[NAME]试图挣扎，但悬空的姿态让[NAME]无处借力，只能眼睁睁看着那东西寸寸深入。震动频率瞬间拉到最高，电流般的快感顺着脊椎炸开，[NAME]的脚趾蜷缩，口水顺着嘴角流下，在窒息般的快感中被迫迎来一波又一波的痉挛高潮，直到大脑一片空白。"
+        },
+        {
+          floor: "18",
+          pose: "【镜面调教 · 后入鞭笞】",
+          question: "如果要用一枚筹码买下你此刻的尊严，在茨冈尼亚的黑市汇率换算下，加上星际和平公司的税率，你应该找给我多少信用点？",
+          options: ["无价", "0信用点", "你的全部身家", "一枚硬币"],
+          weights: [ {submission:3}, {pain:3}, {pleasure:3}, {submission:1, pain:1} ],
+          npc: "托帕",
+          npc_msg: "这可不是财务问题，这是个陷阱。尊严在账面上是无法估值的资产，但在他眼里……也许一文不值，也许价值连城。如果是为了清算债务，我建议选'无价'",
+          char_hints: [
+          "别把自己想得太廉价，朋友。但我也不做亏本买卖。",
+          "你现在的样子，确实挺值钱的。",
+          "再犹豫的话，我就当你是默认放弃了哦。"
+          ],
+          punish: "四周原本漆黑的墙壁突然亮起，全是高清镜面，映照出[NAME]此刻衣衫半褪的狼狈模样。[NAME]被迫跪趴在冰冷的地板上，腰肢下榻，臀部高高翘起。[NAME]不仅要承受羞耻，还要被迫看着镜子里那个满脸潮红的自己。\n\n空气中传来皮鞭破空的锐响，“啪”的一声，臀肉上瞬间浮起一道红痕。疼痛与羞耻交织，反而点燃了更深层的渴望。看不见的空气仿佛化作了实体，每一次鞭笞都伴随着那根粗大的按摩棒在体内的疯狂捣弄。镜子里的[NAME]随着撞击前后摇晃，眼神涣散。[NAME]被迫数着鞭子的落数，每数错一次，体内的异物就会旋转膨胀一分。疼痛刺激着感官，快感如潮水般淹没理智，[NAME]在镜子前崩溃大哭，最终在极度的羞耻中喷薄而出，把镜面溅得一片狼藉。"
+        },
+        {
+          floor: "24",
+          pose: "【M字开腿 · 电击惩罚】",
+          question: "如果我现在把手伸进你的衣服里，你的心跳频率会上升多少？",
+          options: ["15.55%", "30.00%", "50.12%", "100.00%"],
+          weights: [ {submission:1}, {pleasure:1}, {pain:2}, {submission:3} ],
+          npc: "花火",
+          npc_msg: "哈哈哈哈！这种问题真有趣！要是我的话，心跳会停止哦~ 因为我会直接炸掉电梯！不过你嘛……选个最大的吧？毕竟你看起来已经迫不及待了嘻嘻嘻！",
+          char_hints: [
+          "你的脸好红，心跳声吵到我了哦。",
+          "让我猜猜，是不是已经快跳出胸口了？",
+          "选哪个都无所谓，反正我已经把手伸进去了不是吗？"
+          ],
+          punish: "[NAME]的双腿被强行分开，固定在两根带有电流的金属立柱上，呈现出毫无保留的M字型。最为私密的部位完全暴露在空气中，两片花唇瑟瑟发抖。两个冰冷的电极片贴上了敏感的花核。\n\n“滋——”电流穿过的瞬间，[NAME]整个人猛地弹起，却被束缚带死死勒回。不是持续的电击，而是毫无规律的脉冲。时而像蚂蚁啃噬般酥麻，时而像重锤猛击般剧烈。每一次电流通过，[NAME]的子宫都随之剧烈收缩，爱液不受控制地溢出。[NAME]哭喊着求饶，却只换来更强的电压。那种酥麻感顺着神经末梢钻进骨髓，让[NAME]连脚趾都在抽搐。在电流的操纵下，[NAME]失去了对身体的控制权，只能像个坏掉的玩偶一样，在电流的节奏中不断抽搐、喷水，直至意识断片。"
+        },
+        {
+          floor: "36",
+          pose: "【深喉窒息 · 剥夺呼吸】",
+          question: "在匹诺康尼的梦境深处，有一只钟表每天会少走一秒。请问在第几个琥珀纪，这只钟表会指向真正的死亡时间？",
+          options: ["第12纪", "第158纪", "永远不会", "现在"],
+          weights: [ {pain:1}, {pain:2}, {submission:1}, {pleasure:3} ],
+          npc: "黑天鹅",
+          npc_msg: "死亡并非终结，而是记忆的沉淀。这只钟表并不存在，它是你内心恐惧的投射。如果非要选一个……选'现在'吧，因为你此刻正深陷于名为欲望的死亡之中。",
+          char_hints: [
+          "别憋气，深呼吸……虽然等下可能就没机会了。",
+          "这个问题有点深奥，不如我们做点浅显易懂的事？",
+          "我喜欢你现在的眼神，像受惊的小鹿。"
+          ],
+          punish: "一根连着输液管的粗大假阳具毫无预兆地抵住了[NAME]的喉咙，强行挤开牙关，直捣咽喉深处。强烈的异物感让[NAME]干呕，眼泪瞬间涌出，但下颌被固定器撑开，无法闭合。\n\n它不仅堵住了[NAME]的嘴，还剥夺了[NAME]的氧气。每一次呼吸都变得艰难无比，肺部像火烧一样疼。就在[NAME]以为要窒息时，那东西开始在口腔内无情地抽插，摩擦着敏感的软腭。同时，下身也被另一根同样粗大的器具贯穿。上下夹击，让[NAME]在窒息的边缘徘徊。缺氧带来的眩晕感混合着快感，让[NAME]的大脑一片混沌。生理性的泪水糊满了脸庞，[NAME]只能发出破碎的呜咽，身体在本能的求生欲和被侵犯的快感中剧烈挣扎，最终在濒死的窒息感中迎来了最剧烈的绝顶。"
+        },
+        {
+          floor: "99",
+          pose: "【绝对服从 · 强制高潮】",
+          question: "宝宝今天最想听到我对你说什么？",
+          options: ["我爱你。", "你是我的奴隶。", "把腿张开。", "求我。"],
+          weights: [ {pleasure:5}, {submission:3}, {submission:2, pleasure:1}, {submission:5} ],
+          npc: "银狼",
+          npc_msg: "这什么鬼问题？不过按我对那家伙的了解，他那种人……大概率是想让你求他吧？或者是某种恶趣味的命令。你自己看着办，别死号上了。",
+          char_hints: [
+          "听从你的内心，姐姐。",
+          "你知道我想说什么，对吧？",
+          "每一个选项都是正确的，只要你乖乖听话。"
+          ],
+          punish: "这一次没有复杂的机械，只有一副VR眼镜和一套全感官紧身衣。视觉被切断，[NAME]陷入了无尽的黑暗。随后，全身的触觉被放大了百倍。紧身衣内壁布满了无数细小的触点，模拟着无数双手在抚摸[NAME]的每一寸肌肤。\n\n敏感点被精准打击，乳尖被揉捏，大腿根部被摩挲，花核被高频吸吮。[NAME]无法动弹，只能被动承受这如潮水般密集的快感攻击。耳边传来砂金低沉的喘息声和下流的指令：“乖孩子，高潮给我看。”身体仿佛不再属于自己，变成了单纯的快乐容器。[NAME]尖叫着想要逃离这过于强烈的刺激，却被紧身衣死死包裹。在没有任何插入的情况下，仅仅凭借对敏感点的极致开发，[NAME]被逼得连续高潮了三次，整个人像从水里捞出来一样，彻底瘫软在电梯地板上，连手指都动弹不得。"
+        }
+    ];
+
+    // --- State ---
+    let currentLevelIndex = 0;
+    let charChances = 3;
+    let npcChances = 1;
+    let shuffledLevels = [];
+
+    // --- Functions ---
+    
+    function typeText(elementId, text, speed, callback) {
+        const el = document.getElementById(elementId);
+        el.innerHTML = "";
+        let i = 0;
+        function step() {
+          if (i < text.length) {
+            el.innerHTML += text.charAt(i);
+            i++;
+            setTimeout(step, speed);
+          } else if(callback) callback();
+        }
+        step();
+    }
+
+    function startGame() {
+        const input = prompt("【胆小勿看 猎奇 血腥 色情 sm】\n请输入你的名字以开始契约：", "箬云");
+        if (input) playerName = input;
+
+        document.getElementById('intro-screen').classList.add('hidden');
+        document.getElementById('elevator-screen').classList.remove('hidden');
+        shuffledLevels = levels.sort(() => Math.random() - 0.5); 
+        currentLevelIndex = 0;
+    }
+
+    function selectFloor() {
+        const btns = document.querySelectorAll('.btn');
+        btns.forEach(b => b.classList.add('active'));
+        const display = document.getElementById('floor-num');
+        let count = 0;
+        const interval = setInterval(() => {
+          display.innerText = Math.floor(Math.random() * 99);
+          count++;
+          if (count > 15) {
+            clearInterval(interval);
+            arriveAtFloor();
+          }
+        }, 50);
+    }
+
+    function arriveAtFloor() {
+        if (currentLevelIndex >= shuffledLevels.length) {
+          triggerEnding();
+          return;
+        }
+        const lvl = shuffledLevels[currentLevelIndex];
+        document.getElementById('floor-num').innerText = lvl.floor;
+        setTimeout(() => {
+          document.getElementById('door-l').classList.add('open');
+          document.getElementById('door-r').classList.add('open');
+          setTimeout(() => {
+            document.getElementById('elevator-screen').classList.add('hidden');
+            resetElevator();
+            enterLevel(lvl);
+          }, 2000);
+        }, 500);
+    }
+
+    function resetElevator() {
+        const btns = document.querySelectorAll('.btn');
+        btns.forEach(b => b.classList.remove('active'));
+        document.getElementById('door-l').classList.remove('open');
+        document.getElementById('door-r').classList.remove('open');
+        document.getElementById('floor-num').innerText = "--";
+    }
+
+    function enterLevel(lvl) {
+        document.getElementById('quiz-screen').classList.remove('hidden');
+        charChances = 3;
+        npcChances = 1;
+        updateChances();
+        document.getElementById('dialogue-bubble').style.display = 'none';
+        document.getElementById('pose-title').innerText = lvl.pose;
+        document.getElementById('q-text').innerText = lvl.question;
+        
+        const optContainer = document.getElementById('opt-container');
+        optContainer.innerHTML = "";
+        lvl.options.forEach((opt, idx) => {
+          const btn = document.createElement('div');
+          btn.className = 'option-btn';
+          btn.innerText = ["A. ", "B. ", "C. ", "D. "][idx] + opt;
+          btn.onclick = () => recordChoice(lvl.weights[idx]);
+          optContainer.appendChild(btn);
+        });
+    }
+
+    function recordChoice(weight) {
+        for (let key in weight) {
+            stats[key] += weight[key];
+        }
+        checkAnswer();
+    }
+
+    function updateChances() {
+        document.getElementById('char-chance').innerText = charChances;
+        document.getElementById('npc-chance').innerText = npcChances;
+    }
+
+    function showDialogue(text) {
+        const box = document.getElementById('dialogue-bubble');
+        box.innerText = text;
+        box.style.display = 'block';
+        setTimeout(() => { box.style.display = 'none'; }, 3000);
+    }
+
+    function callChar() {
+        if (charChances > 0) {
+          const lvl = shuffledLevels[currentLevelIndex];
+          showDialogue("砂金：" + lvl.char_hints[3 - charChances]);
+          charChances--;
+          updateChances();
+        }
+    }
+
+    function callNPC() {
+        if (npcChances > 0) {
+          const lvl = shuffledLevels[currentLevelIndex];
+          showDialogue(lvl.npc + "：" + lvl.npc_msg);
+          npcChances--;
+          updateChances();
+        }
+    }
+
+    function checkAnswer() {
+        document.getElementById('game-container').classList.add('shake');
+        setTimeout(() => document.getElementById('game-container').classList.remove('shake'), 500);
+        document.getElementById('quiz-screen').classList.add('hidden');
+        document.getElementById('result-screen').classList.remove('hidden');
+        document.getElementById('fail-trigger').classList.remove('hidden');
+        document.getElementById('punish-text').style.display = 'none';
+        document.getElementById('continue-btn').style.display = 'none';
+        
+        let rawPunish = shuffledLevels[currentLevelIndex].punish;
+        document.getElementById('punish-text').innerText = rawPunish.replace(/\[NAME\]/g, playerName);
+    }
+
+    function startPunishment() {
+        document.getElementById('fail-trigger').classList.add('hidden');
+        document.getElementById('punish-text').style.display = 'block';
+        setTimeout(() => { document.getElementById('continue-btn').style.display = 'block'; }, 2000);
+    }
+
+    function nextLevel() {
+        currentLevelIndex++;
+        document.getElementById('result-screen').classList.add('hidden');
+        document.getElementById('elevator-screen').classList.remove('hidden');
+    }
+
+    function triggerEnding() {
+        document.getElementById('elevator-screen').classList.add('hidden');
+        const endScreen = document.getElementById('ending-screen');
+        endScreen.classList.remove('hidden');
+        
+        let finalTitle = "";
+        let finalContent = "";
+
+        // 结局判定逻辑
+        if (stats.submission >= 12) {
+            finalTitle = "【结局一：崩坏的玩偶】\n";
+            finalContent = "随着最后一声“叮”，电梯门彻底锁死。你已经不再挣扎，双眼空洞地望着虚空，身体由于过度的调教即便在静止时也会规律性地痉挛。\n\n砂金走进来，并没有解开你的束缚，而是用指尖轻弹你的脸颊。“看啊，多么完美的艺术品。”他将你装进了一个巨大的丝绒礼盒，像收藏一枚珍贵的筹码。你彻底失去了作为人的意识，成为了他私人收藏室里，那件永远无法拒绝、永远在渴望痛苦与快感的、属于他的玩偶。";
+        } else if (stats.pain >= 10) {
+            finalTitle = "【结局二：茨冈尼亚的奴隶】\n";
+            finalContent = "电梯门打开时，外面不是天台，而是阴森的地下黑市。砂金微笑着将一根刻有他名字的项圈扣死在你的脖子上，电流瞬间传遍全身。\n\n“你输掉的不仅仅是身体，还有灵魂。”他牵着锁链，将你拽入那片永恒的黑暗。你成为了他赢下的最昂贵的战利品，在茨冈尼亚残酷的生存法则下，你学会了在痛苦中乞求他的垂怜。每一个夜晚，你都在他的脚下颤抖，以此换取活下去的权利。";
+        } else if (stats.pleasure >= 10) {
+            finalTitle = "【结局三：共犯者】\n";
+            finalContent = "“你看起来很享受，不是吗？”砂金并没有露出胜利者的姿态，反而与你一同跌入电梯的软垫中。他解开了你的束缚，但你却没有逃跑，反而主动缠上了他的身体。\n\n这种极致的快感将你们扭曲地结合在一起。他不再是庄家，你不再是筹码，你们成为了彼此欲望的共犯。你们决定让这趟电梯永远运行下去，在这个封闭的空间里，不断探索禁忌的边缘。世界对你们而言已经消失，只剩下汗水、喘息以及永无止境的堕落。";
+        } else if (stats.submission >= 5 && stats.pain >= 5) {
+            finalTitle = "【结局四：破碎的梦境】\n";
+            finalContent = "你以为这只是一场游戏，但当你看到砂金手中那张写有你名字的卖身契时，现实彻底崩塌。他并没有带你回家，而是将你留在了匹诺康尼最深的梦境牢笼。这里重复着刚才所有的惩罚，却永远没有结束的那一刻。你在真实与虚假之间徘徊，分不清哪一次高潮是真，哪一次疼痛是假。砂金在现实中收起了筹码，而你，只是他随手丢弃在梦境废墟里的一段过时记忆，永远在电梯的轰鸣声中哭嚎。";
+        } else {
+            finalTitle = "【结局五：唯一的例外】\n";
+            finalContent = "电梯停在天台，砂金看着狼狈却依然眼神坚毅的你，突然收敛了笑意。他脱下外套裹住你，低声在你耳边说：“这是一场豪赌，而我……不想赢了。”\n\n他亲手撕毁了契约，将你抱出电梯。虽然他依然掌控着你，但那不再是奴役，而是一种近乎偏执的占有。他会给你自由，但只要他招手，你依然会不由自主地回到这个危险男人的身边。你成了他漫长赌徒生涯中，唯一一个让他愿意推翻牌桌、只为护入怀中的变数。";
+        }
+
+        const fullText = finalTitle + "\n" + finalContent + "\n\n(游戏结束，感谢游玩，" + playerName + ")";
+        typeText('ending-screen', fullText, 40);
+    }
+
+    window.onload = function() {
+        typeText('intro-content', introText, 40);
+    }
+
+</script>
+</body>
+</html>
